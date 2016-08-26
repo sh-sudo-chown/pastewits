@@ -25,14 +25,16 @@ def pastegrab(url):
     return paste
 
 def pastemongo(paste,ref,database):
-    ref = str(ref.split("/")[(len(ref.split("/"))-1):])
+    ref = str(ref.split("/")[(len(ref.split("/"))-1):])[3:-2]
     collection = pymongo.collection.Collection(database,ref)
     post_id = collection.insert_one(paste).inserted_id
     print "posted to collection " + ref
 
 def pasteformat(url):
 	pastefile = urlopen(url)
-	for line in pastefile.read():
+	print pastefile.geturl()
+	for line in pastefile.readlines():
+		print line
 		if len(line.split(':')) > 1:
 			paste = {line.split(':')[0].strip() : line.split(':')[1:]}
 		elif len(line.split('@')) == 2:
@@ -45,7 +47,7 @@ def get_tweets(api,db,datanbase):
     while maxid != -1:
 	#continue iterable, GetUserTimeline will throw error on complete
 	try:
-	        statuses = api.GetUserTimeline(user_id=db, count=20, max_id=maxid)
+	        statuses = api.GetUserTimeline(screen_name=db, count=20, max_id=maxid)
 	except Exception, e:
 		print "Twitter cannot find more tweets after " + str(max_id)
 		sys.exit(0)
