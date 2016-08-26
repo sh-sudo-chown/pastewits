@@ -63,10 +63,10 @@ def get_tweets(api,db,datanbase):
 
 if __name__ == "__main__":
     api=twitter.Api(
-	consumer_key = 'myD7iaPP8hXqho5V0495dR2yo',
-	consumer_secret = 't5THfDrPVhW2Ac3H0vfo07tIKSWhhcQUEhvUyJwKJApcTrXku9',
-	access_token_key = '2520209895-TZzj7wGWhkXW5GUX0QSKdUcRzHvRjqECTNVwwpV',
-	access_token_secret = 'WuJc6d0GoT8okfQHdkcydRyWS2ZapjmLYsqsGScQ58CUe',
+	consumer_key = '',	#add personal app info here
+	consumer_secret = '',
+	access_token_key = '',
+	access_token_secret = '',
         sleep_on_rate_limit=True
     )
     db = str(sys.argv[1])
