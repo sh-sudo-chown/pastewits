@@ -2,9 +2,12 @@
 import twitter
 import requests
 import pymongo
+import collections
+import bson
 import re
 import sys
 from urllib2 import *
+import datetime
 
 #script to collect pastes linked to by pastebin twitter bots to mongodb collection
 #
@@ -21,7 +24,7 @@ def pastegrab(url):
 	try:
 	        pastefile = urlopen(url)
 	except Exception, e:
-		print "request returned status code 200, but additional request returned  code" + pastefile.geturl()
+		print "request returned status code 200, but additional request returned" + pastefile.geturl()
 	print pastefile.geturl()
     else:
 	print "opening " + url + " returned invalid status code"
@@ -33,8 +36,8 @@ def pastemongo(doc,ref,database,status):
 	collection = pymongo.collection.Collection(database,ref)
 	try:
 		post_id = collection.insert_one(doc).inserted_id
-	except pymongo.errors.DuplicateKeyError:
-		print "duplicate key, skipping"
+	except pymongo.errors.DuplicateKeyError, e:
+		print "duplicate key, skipping, %s" % e
 		return -1
 	print "posted to collection " + ref
 
@@ -46,6 +49,7 @@ def pasteformat(pastefile,status,db,database,regexes,tags,ref):
 			if not word in statustags:
 				statustags.append(str(word))
 	metadoc = {
+	#'_id': bson.objectid.ObjectId.from_datetime(datetime.datetime.now()),
 	'tweet_id': status.id,
 	'tweet_url': str(ref.split("/")[(len(ref.split("/"))-1):])[3:-2],
 	'paste_url': pastefile.geturl(),
@@ -57,13 +61,15 @@ def pasteformat(pastefile,status,db,database,regexes,tags,ref):
 		print line
 		if line != None:
 			i+=1
-			paste = { 'line' : i }
+			paste = {
+			#'_id': bson.objectid.ObjectId.from_datetime(datetime.datetime.now()),
+			'line': i }
 			for word in str(line).split():
 				if word in tags:
 					if not word in pastetags:
 						pastetags.append(word)
 			metadoc['paste_tags'] = tuple(pastetags)
-			for k,v in regexes.items():
+			for k,v in regexes.iteritems():
 				instances = v.findall(line)
 				if instances != None:
 					metadoc[k] = (len(instances))
@@ -84,7 +90,15 @@ def pasteformat(pastefile,status,db,database,regexes,tags,ref):
 					except Exception, e:
 						print "out of range, skipping line"
 						continue
-			paste['text'] = str(line)
+			print type(line)
+			if type(line) == str:
+				try:
+					paste['text'] = line.encode("utf_7","ignore")
+				except UnicodeDecodeError, e:
+					print "UnicodeDecodeError %s skipping line" % e
+					continue
+			else:
+				paste['text'] = line
    	 		pastemongo(paste,ref,database,status)
 		pastemongo(metadoc,ref,database,status)
 	return 0
@@ -124,16 +138,20 @@ def get_tweets(api,db,database):
 	    maxid=status.id
 
 if __name__ == "__main__":
-    api=twitter.Api(
-	#add personal app info here
-	consumer_key = 'myD7iaPP8hXqho5V0495dR2yo',
-	consumer_secret = 't5THfDrPVhW2Ac3H0vfo07tIKSWhhcQUEhvUyJwKJApcTrXku9',
-	access_token_key = '2520209895-TZzj7wGWhkXW5GUX0QSKdUcRzHvRjqECTNVwwpV',
-	access_token_secret = 'WuJc6d0GoT8okfQHdkcydRyWS2ZapjmLYsqsGScQ58CUe',
-        sleep_on_rate_limit=True
-    )
-    db = str(sys.argv[1])
-#    maxid = sys.argv[2]
-    client = pymongo.MongoClient('localhost',27017)
-    database = pymongo.database.Database(client,db)
-    get_tweets(api,db,database)
+	api=twitter.Api(
+		#add personal app info here
+		consumer_key = 'myD7iaPP8hXqho5V0495dR2yo',
+		consumer_secret = 't5THfDrPVhW2Ac3H0vfo07tIKSWhhcQUEhvUyJwKJApcTrXku9',
+		access_token_key = '2520209895-TZzj7wGWhkXW5GUX0QSKdUcRzHvRjqECTNVwwpV',
+		access_token_secret = 'WuJc6d0GoT8okfQHdkcydRyWS2ZapjmLYsqsGScQ58CUe',
+		sleep_on_rate_limit = True
+	)
+	db = str(sys.argv[1])
+#	maxid = sys.argv[2]
+	try:
+	    	client = pymongo.MongoClient('localhost',27017)
+		print "mongod server connection successful"
+	except ConnectionFailure, e:
+		print "could not connect to mongod server instance, try restarting: %s" % e
+	database = pymongo.database.Database(client,db)
+	get_tweets(api,db,database)
