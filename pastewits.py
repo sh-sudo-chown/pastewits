@@ -31,7 +31,11 @@ def pastegrab(url):
 def pastemongo(doc,ref,database,status):
 	ref = str(ref.split("/")[(len(ref.split("/"))-1):])[3:-2]
 	collection = pymongo.collection.Collection(database,ref)
-	post_id = collection.insert_one(doc).inserted_id
+	try:
+		post_id = collection.insert_one(doc).inserted_id
+	except pymongo.errors.DuplicateKeyError:
+		print "duplicate key, skipping"
+		return -1
 	print "posted to collection " + ref
 
 def pasteformat(pastefile,status,db,database,regexes,tags,ref):
@@ -46,7 +50,6 @@ def pasteformat(pastefile,status,db,database,regexes,tags,ref):
 	'tweet_url': str(ref.split("/")[(len(ref.split("/"))-1):])[3:-2],
 	'paste_url': pastefile.geturl(),
 	'tweet': status.text,
-	#'hashtags': status.hashtags,
 	'status_tags': statustags
 	}
 	i=0
@@ -67,14 +70,14 @@ def pasteformat(pastefile,status,db,database,regexes,tags,ref):
 				else:
 					continue
 				if len(instances) >1:
-					it=0
+					insts = []
 					for instance in instances:
 						try:
-							paste[k[it]]=str(instance)
+							insts.append(str(instance))
 						except Exception, e:
 							print "out of range, skipping line"
 							continue
-						it+=1
+					paste[k] = tuple(insts)
 				elif len(instances) == 1:
 					try:
 						paste[k]=(str(instances))
@@ -89,7 +92,7 @@ def pasteformat(pastefile,status,db,database,regexes,tags,ref):
 def expressions():
 	regexes = {
 	'email': re.compile('[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}'),
-	'ssn': re.compile('\d{3}-?\d{2}-?\d{4}'),
+	'ssn': re.compile('\d{3}-\d{2}-\d{4}'),
 	'url':re.compile('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+|(?<=[a-zA-z]|[0-9]|[$-_@.&+]|[!*\(\),]){2,60}\.[a-zA-Z]{2,3}\/(?=[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]){2,60}'),
 	'ip': re.compile('\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b'),
 	'mac': re.compile('\b(?:[0-9A-Fa-f]{2}[:\-\.]){5}([0-9A-Fa-f]{2})\b'),
